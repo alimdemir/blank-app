@@ -30,7 +30,7 @@ class Takim:
 def fiyat_belirle(overall, yas):
     yas_faktor = 1 - (yas - 20) * 0.05 if yas > 20 else 1  # Yaş faktörü
     base_fiyat = overall * 2_000_000  # Base fiyat overall'a göre belirlenir
-    return max(500_000, base_fiyat * yas_faktor)  # Minimum fiyat 500.000 €
+    return max(500_000, base_fiyat * yas_faktor * 1.2)  # OVR'yi %20 daha etkili yap
 
 # Oyuncu oluşturma fonksiyonu
 def oyuncu_olustur(name, overall, yas):
@@ -84,8 +84,8 @@ def csvden_oyuncu_yukle(transfermarkt, dosya_adi):
     df = pd.read_csv(dosya_adi)
     for _, row in df.iterrows():
         isim = row['Name']
-        overall = row['OVR']
-        yas = row['Age']
+        overall = int(row['OVR'])
+        yas = int(row['Age'])
         oyuncu = oyuncu_olustur(isim, overall, yas)
         transfermarkt.append(oyuncu)
 
@@ -168,7 +168,7 @@ def main():
         takim_bilgilerini_goster(takimlar)
 
     elif menu_secim == "Çıkış":
-        st.write("Çıkış yaptınız.")
+        st.write("Çıkış yapıldı.")
 
 if __name__ == "__main__":
     main()
