@@ -88,8 +88,13 @@ def main():
     if menu_secim == "Oyuncu Listesi":
         st.header("Transfermarkt'taki Oyuncular")
         if transfermarkt:
+            oyuncu_listesi = []
             for oyuncu in transfermarkt:
-                st.write(f"{oyuncu.isim} - Overall: {oyuncu.overall}, Yaş: {oyuncu.yas}, Fiyat: {oyuncu.fiyat:.2f} €")
+                fiyat_formatted = format(oyuncu.fiyat, ',.0f').replace(',', '.')
+                oyuncu_listesi.append([oyuncu.isim, oyuncu.overall, oyuncu.yas, f"{fiyat_formatted} €"])
+
+            oyuncu_df = pd.DataFrame(oyuncu_listesi, columns=["İsim", "Overall", "Yaş", "Fiyat"])
+            st.dataframe(oyuncu_df)
         else:
             st.write("Transfermarkt'ta oyuncu yok.")
 
@@ -107,7 +112,7 @@ def main():
             st.write("Önce bir takım kurmalısınız!")
         else:
             takim_secim = st.selectbox("Takım Seç", st.session_state['takimlar'], format_func=lambda x: x.isim)
-            transfermarkt_listele = st.selectbox("Oyuncu Seç", transfermarkt, format_func=lambda x: f"{x.isim} - Overall: {x.overall}, Fiyat: {x.fiyat:.2f} €")
+            transfermarkt_listele = st.selectbox("Oyuncu Seç", transfermarkt, format_func=lambda x: f"{x.isim} - Overall: {x.overall}, Fiyat: {format(x.fiyat, ',.0f').replace(',', '.')} €")
             
             if st.button("Oyuncu Satın Al"):
                 takim_secim.oyuncu_satinal(transfermarkt_listele)
