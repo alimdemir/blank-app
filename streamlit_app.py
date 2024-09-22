@@ -88,7 +88,6 @@ def csvden_oyuncu_yukle(transfermarkt, dosya_adi):
         yas = row['Age']
         oyuncu = oyuncu_olustur(isim, overall, yas)
         transfermarkt.append(oyuncu)
-    st.success(f"{dosya_adi} dosyasından oyuncular yüklendi!")
 
 # Main Streamlit uygulaması
 def main():
@@ -98,8 +97,11 @@ def main():
     transfermarkt = []
     takimlar = []
 
+    # Oyuncuları players_game.csv dosyasından yükle
+    csvden_oyuncu_yukle(transfermarkt, 'players_game.csv')
+
     # Menü
-    menu_secim = st.sidebar.selectbox("Menü", ["Oyuncu Oluştur", "CSV'den Oyuncu Yükle", "Transfermarkt'ı Gör", "Takım Kur", "Oyuncu Satın Al", "Maç Yap", "Takım Bilgilerini Gör", "Çıkış"])
+    menu_secim = st.sidebar.selectbox("Menü", ["Oyuncu Oluştur", "Transfermarkt'ı Gör", "Takım Kur", "Oyuncu Satın Al", "Maç Yap", "Takım Bilgilerini Gör", "Çıkış"])
 
     if menu_secim == "Oyuncu Oluştur":
         with st.form("oyuncu_form"):
@@ -112,12 +114,6 @@ def main():
                 oyuncu = oyuncu_olustur(name, overall, yas)
                 transfermarkt.append(oyuncu)
                 st.success(f"{oyuncu.isim} oluşturuldu ve Transfermarkt'a eklendi!")
-
-    elif menu_secim == "CSV'den Oyuncu Yükle":
-        st.write("Lütfen 'players_game.csv' dosyasını yükleyin.")
-        dosya_yolu = st.text_input("CSV dosya yolu", "players_game.csv")
-        if st.button("Yükle"):
-            csvden_oyuncu_yukle(transfermarkt, dosya_yolu)
 
     elif menu_secim == "Transfermarkt'ı Gör":
         transfermarkt_listele(transfermarkt)
