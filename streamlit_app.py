@@ -27,8 +27,8 @@ class Takim:
 # Takımlar arasında maç yapma fonksiyonu
 def takimlar_arasi_mac(takim1, takim2):
     # Takım gücünü hesapla
-    takim1_gucu = sum([oyuncu.overall for oyuncu in takim1.oyuncular]) / len(takim1.oyuncular)
-    takim2_gucu = sum([oyuncu.overall for oyuncu in takim2.oyuncular]) / len(takim2.oyuncular)
+    takim1_gucu = sum([oyuncu.overall for oyuncu in takim1.oyuncular]) / len(takim1.oyuncular) if takim1.oyuncular else 0
+    takim2_gucu = sum([oyuncu.overall for oyuncu in takim2.oyuncular]) / len(takim2.oyuncular) if takim2.oyuncular else 0
 
     # Gol sayısını belirle
     gol_sayisi1 = np.random.poisson(takim1_gucu / 20)
@@ -40,9 +40,13 @@ def takimlar_arasi_mac(takim1, takim2):
 def main():
     st.title("Futbol Takım Yönetimi")
 
-    oyuncular = []
-    transfermarkt = []
-    takimlar = []
+    # Kullanıcı verilerini saklamak için session state kullanıyoruz
+    if 'oyuncular' not in st.session_state:
+        st.session_state.oyuncular = []
+    if 'transfermarkt' not in st.session_state:
+        st.session_state.transfermarkt = []
+    if 'takimlar' not in st.session_state:
+        st.session_state.takimlar = []
 
     menu_option = st.sidebar.selectbox("Seçenekler", ["Oyuncu Oluştur", "Transfermarkt'i Gör", "Takım Kur", "Oyuncu Satın Al", "Maç Yap"])
 
@@ -53,16 +57,16 @@ def main():
         if st.button("Oyuncu Oluştur"):
             fiyat = overall * 100_000
             oyuncu = FutbolOyuncusu(isim, overall, fiyat)
-            oyuncular.append(oyuncu)
-            transfermarkt.append(oyuncu)
+            st.session_state.oyuncular.append(oyuncu)
+            st.session_state.transfermarkt.append(oyuncu)
             st.success(f"{oyuncu.isim} oyuncusu oluşturuldu ve Transfermarkt'a eklendi!")
 
     elif menu_option == "Transfermarkt'i Gör":
-        if not transfermarkt:
+        if not st.session_state.transfermarkt:
             st.warning("Transfermarkt'ta hiç oyuncu yok.")
         else:
             st.write("Transfermarkt:")
-            for i, oyuncu in enumerate(transfermarkt):
+            for i, oyuncu in enumerate(st.session_state.transfermarkt):
                 st.write(f"{i + 1}. {oyuncu.isim} (Overall: {oyuncu.overall}, Fiyat: {oyuncu.fiyat} €)")
 
     elif menu_option == "Takım Kur":
@@ -71,37 +75,37 @@ def main():
 
         if st.button("Takım Kur"):
             takim = Takim(isim, para)
-            takimlar.append(takim)
+            st.session_state.takimlar.append(takim)
             st.success(f"{takim.isim} takımı kuruldu!")
 
     elif menu_option == "Oyuncu Satın Al":
-        if not takimlar:
+        if not st.session_state.takimlar:
             st.warning("Oyuncu satın almak için önce bir takım kurmalısınız!")
-        elif not transfermarkt:
+        elif not st.session_state.transfermarkt:
             st.warning("Transfermarkt'ta satılık oyuncu yok!")
         else:
-            takim_secimi = st.selectbox("Satın alacak takım:", [takim.isim for takim in takimlar])
-            takim = next(t for t in takimlar if t.isim == takim_secimi)
-            oyuncu_secimi = st.selectbox("Satın alınacak oyuncu:", [oyuncu.isim for oyuncu in transfermarkt])
+            takim_secimi = st.selectbox("Satın alacak takım:", [takim.isim for takim in st.session_state.takimlar])
+            takim = next(t for t in st.session_state.takimlar if t.isim == takim_secimi)
+            oyuncu_secimi = st.selectbox("Satın alınacak oyuncu:", [oyuncu.isim for oyuncu in st.session_state.transfermarkt])
 
             if st.button("Oyuncu Satın Al"):
-                oyuncu = next(o for o in transfermarkt if o.isim == oyuncu_secimi)
+                oyuncu = next(o for o in st.session_state.transfermarkt if o.isim == oyuncu_secimi)
                 if takim.oyuncu_satinal(oyuncu):
-                    transfermarkt.remove(oyuncu)
+                    st.session_state.transfermarkt.remove(oyuncu)
                     st.success(f"{oyuncu.isim} oyuncusu {takim.isim} takımına transfer edildi!")
                 else:
                     st.error("Yeterli paranız yok!")
 
     elif menu_option == "Maç Yap":
-        if len(takimlar) < 2:
+        if len(st.session_state.takimlar) < 2:
             st.warning("Maç yapabilmek için en az iki takım oluşturmalısınız!")
         else:
-            takim1_secimi = st.selectbox("Birinci takım:", [takim.isim for takim in takimlar])
-            takim2_secimi = st.selectbox("İkinci takım:", [takim.isim for takim in takimlar if takim.isim != takim1_secimi])
+            takim1_secimi = st.selectbox("Birinci takım:", [takim.isim for takim in st.session_state.takimlar])
+            takim2_secimi = st.selectbox("İkinci takım:", [takim.isim for takim in st.session_state.takimlar if takim.isim != takim1_secimi])
 
             if st.button("Maç Yap"):
-                takim1 = next(t for t in takimlar if t.isim == takim1_secimi)
-                takim2 = next(t for t in takimlar if t.isim == takim2_secimi)
+                takim1 = next(t for t in st.session_state.takimlar if t.isim == takim1_secimi)
+                takim2 = next(t for t in st.session_state.takimlar if t.isim == takim2_secimi)
                 gol1, gol2 = takimlar_arasi_mac(takim1, takim2)
                 st.write(f"{takim1.isim} Skoru: {gol1} - {takim2.isim} Skoru: {gol2}")
                 if gol1 > gol2:
