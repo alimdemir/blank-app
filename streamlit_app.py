@@ -30,9 +30,9 @@ def takimlar_arasi_mac(takim1, takim2):
     takim1_gucu = sum([oyuncu.overall for oyuncu in takim1.oyuncular]) / len(takim1.oyuncular) if takim1.oyuncular else 0
     takim2_gucu = sum([oyuncu.overall for oyuncu in takim2.oyuncular]) / len(takim2.oyuncular) if takim2.oyuncular else 0
 
-    # Gol sayısını belirle
-    gol_sayisi1 = np.random.poisson(takim1_gucu / 20)
-    gol_sayisi2 = np.random.poisson(takim2_gucu / 20)
+    # Gol sayısını belirle (güç ve rastgelelik kombinasyonu)
+    gol_sayisi1 = np.random.poisson(lam=(takim1_gucu / 20) + random.uniform(0, 1))
+    gol_sayisi2 = np.random.poisson(lam=(takim2_gucu / 20) + random.uniform(0, 1))
 
     return gol_sayisi1, gol_sayisi2
 
@@ -47,6 +47,9 @@ def main():
         st.session_state.transfermarkt = []
     if 'takimlar' not in st.session_state:
         st.session_state.takimlar = []
+    if 'mac_baslatildi' not in st.session_state:
+        st.session_state.mac_baslatildi = False
+        st.session_state.mac_sonuclari = None
 
     menu_option = st.sidebar.selectbox("Seçenekler", ["Oyuncu Oluştur", "Transfermarkt'i Gör", "Takım Kur", "Oyuncu Satın Al", "Maç Yap"])
 
@@ -103,17 +106,29 @@ def main():
             takim1_secimi = st.selectbox("Birinci takım:", [takim.isim for takim in st.session_state.takimlar])
             takim2_secimi = st.selectbox("İkinci takım:", [takim.isim for takim in st.session_state.takimlar if takim.isim != takim1_secimi])
 
-            if st.button("Maç Yap"):
+            if st.button("Maç Başlat"):
                 takim1 = next(t for t in st.session_state.takimlar if t.isim == takim1_secimi)
                 takim2 = next(t for t in st.session_state.takimlar if t.isim == takim2_secimi)
                 gol1, gol2 = takimlar_arasi_mac(takim1, takim2)
-                st.write(f"{takim1.isim} Skoru: {gol1} - {takim2.isim} Skoru: {gol2}")
-                if gol1 > gol2:
-                    st.success(f"Kazanan: {takim1.isim}!")
-                elif gol1 < gol2:
-                    st.success(f"Kazanan: {takim2.isim}!")
-                else:
-                    st.success("Maç Berabere!")
+
+                # Maç sonuçlarını kaydet
+                st.session_state.mac_baslatildi = True
+                st.session_state.mac_sonuclari = (takim1.isim, gol1, takim2.isim, gol2)
+
+                st.success("Maç başarıyla başlatıldı!")
+
+    if st.session_state.mac_baslatildi:
+        # Maç sonuçları ekranı
+        st.header("Maç Sonuçları")
+        takim1, gol1, takim2, gol2 = st.session_state.mac_sonuclari
+        st.write(f"{takim1} Skoru: {gol1} - {takim2} Skoru: {gol2}")
+
+        if gol1 > gol2:
+            st.success(f"Kazanan: {takim1}!")
+        elif gol1 < gol2:
+            st.success(f"Kazanan: {takim2}!")
+        else:
+            st.success("Maç Berabere!")
 
 if __name__ == "__main__":
     main()
