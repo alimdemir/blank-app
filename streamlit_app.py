@@ -79,6 +79,17 @@ def takim_bilgilerini_goster(takimlar):
             st.write("Bu takımda hiç oyuncu yok.")
         st.write("---")
 
+# Veri setinden oyuncuları yükleyip transfermarkt'a ekleyen fonksiyon
+def csvden_oyuncu_yukle(transfermarkt, dosya_adi):
+    df = pd.read_csv(dosya_adi)
+    for _, row in df.iterrows():
+        isim = row['Name']
+        overall = row['OVR']
+        yas = row['Age']
+        oyuncu = oyuncu_olustur(isim, overall, yas)
+        transfermarkt.append(oyuncu)
+    st.success(f"{dosya_adi} dosyasından oyuncular yüklendi!")
+
 # Main Streamlit uygulaması
 def main():
     st.title("Futbol Menajerlik Uygulaması")
@@ -88,7 +99,7 @@ def main():
     takimlar = []
 
     # Menü
-    menu_secim = st.sidebar.selectbox("Menü", ["Oyuncu Oluştur", "Transfermarkt'ı Gör", "Takım Kur", "Oyuncu Satın Al", "Maç Yap", "Takım Bilgilerini Gör", "Çıkış"])
+    menu_secim = st.sidebar.selectbox("Menü", ["Oyuncu Oluştur", "CSV'den Oyuncu Yükle", "Transfermarkt'ı Gör", "Takım Kur", "Oyuncu Satın Al", "Maç Yap", "Takım Bilgilerini Gör", "Çıkış"])
 
     if menu_secim == "Oyuncu Oluştur":
         with st.form("oyuncu_form"):
@@ -101,6 +112,12 @@ def main():
                 oyuncu = oyuncu_olustur(name, overall, yas)
                 transfermarkt.append(oyuncu)
                 st.success(f"{oyuncu.isim} oluşturuldu ve Transfermarkt'a eklendi!")
+
+    elif menu_secim == "CSV'den Oyuncu Yükle":
+        st.write("Lütfen 'players_game.csv' dosyasını yükleyin.")
+        dosya_yolu = st.text_input("CSV dosya yolu", "players_game.csv")
+        if st.button("Yükle"):
+            csvden_oyuncu_yukle(transfermarkt, dosya_yolu)
 
     elif menu_secim == "Transfermarkt'ı Gör":
         transfermarkt_listele(transfermarkt)
@@ -141,12 +158,13 @@ def main():
             if st.button("Maçı Başlat"):
                 if len(takim1_secim.oyuncular) > 0 and len(takim2_secim.oyuncular) > 0:
                     gol1, gol2, gol_atan_oyuncular1, gol_atan_oyuncular2 = takimlar_arasi_mac(takim1_secim, takim2_secim)
-                    st.write(f"**{takim1_secim.isim} {gol1} - {gol2} {takim2_secim.isim}**")
 
-                    if gol_atan_oyuncular1:
-                        st.write(f"{takim1_secim.isim} için gol atanlar: {[oyuncu.isim for oyuncu in gol_atan_oyuncular1]}")
-                    if gol_atan_oyuncular2:
-                        st.write(f"{takim2_secim.isim} için gol atanlar: {[oyuncu.isim for oyuncu in gol_atan_oyuncular2]}")
+                    st.write(f"**Maç Sonucu:** {takim1_secim.isim} {gol1}-{gol2} {takim2_secim.isim}")
+                    st.write("Gol Atanlar:")
+                    for oyuncu in gol_atan_oyuncular1:
+                        st.write(f"{takim1_secim.isim}: {oyuncu.isim} (Overall: {oyuncu.overall})")
+                    for oyuncu in gol_atan_oyuncular2:
+                        st.write(f"{takim2_secim.isim}: {oyuncu.isim} (Overall: {oyuncu.overall})")
                 else:
                     st.warning("Her iki takımda da en az bir oyuncu olmalı!")
 
@@ -154,8 +172,7 @@ def main():
         takim_bilgilerini_goster(takimlar)
 
     elif menu_secim == "Çıkış":
-        st.write("Çıkış yapılıyor.")
+        st.write("Çıkış yaptınız.")
 
-# Uygulamayı başlat
 if __name__ == "__main__":
     main()
