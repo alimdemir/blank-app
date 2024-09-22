@@ -1,12 +1,14 @@
+import streamlit as st
+import pandas as pd
 import random
 import numpy as np
-import streamlit as st
 
 # Futbol oyuncusu sınıfı
 class FutbolOyuncusu:
-    def __init__(self, isim, overall, fiyat):
+    def __init__(self, isim, overall, yas, fiyat):
         self.isim = isim
         self.overall = overall
+        self.yas = yas
         self.fiyat = fiyat
 
 # Takım sınıfı
@@ -20,124 +22,110 @@ class Takim:
         if self.para >= oyuncu.fiyat:
             self.oyuncular.append(oyuncu)
             self.para -= oyuncu.fiyat
-            return True
+            st.success(f"{oyuncu.isim} oyuncusu {self.isim} takımına transfer edildi!")
         else:
-            return False
+            st.error("Yeterli paranız yok!")
 
-# Takımlar arasında maç yapma fonksiyonu
+# Oyuncu fiyatlandırma fonksiyonu
+def fiyat_belirle(overall, yas):
+    if overall >= 90:
+        fiyat = 200_000_000
+    elif overall >= 80:
+        fiyat = 100_000_000
+    elif overall >= 70:
+        fiyat = 50_000_000
+    else:
+        fiyat = 10_000_000
+    
+    if yas > 30:
+        fiyat *= 0.8  # 30 yaş üstü oyuncular için %20 indirim
+    
+    return fiyat
+
+# CSV'den oyuncu oluşturma fonksiyonu
+def oyuncu_olustur(csv_data):
+    oyuncular = []
+    for _, row in csv_data.iterrows():
+        isim = row['Name']
+        overall = row['OVR']
+        yas = row['Age']
+        fiyat = fiyat_belirle(overall, yas)
+        oyuncu = FutbolOyuncusu(isim, overall, yas, fiyat)
+        oyuncular.append(oyuncu)
+    return oyuncular
+
+# Takımlar arası maç yapma fonksiyonu
 def takimlar_arasi_mac(takim1, takim2):
-    # Takım gücünü hesapla
-    takim1_gucu = sum([oyuncu.overall for oyuncu in takim1.oyuncular]) if takim1.oyuncular else 0
-    takim2_gucu = sum([oyuncu.overall for oyuncu in takim2.oyuncular]) if takim2.oyuncular else 0
+    takim1_gucu = sum([oyuncu.overall for oyuncu in takim1.oyuncular]) / len(takim1.oyuncular)
+    takim2_gucu = sum([oyuncu.overall for oyuncu in takim2.oyuncular]) / len(takim2.oyuncular)
 
-    # Gol sayısını belirle (toplam güç ile oranlama)
-    toplam_guc = takim1_gucu + takim2_gucu
-    gol_sayisi1 = np.random.poisson(lam=(takim1_gucu / toplam_guc) * 5)  # Maksimum 5 gol
-    gol_sayisi2 = np.random.poisson(lam=(takim2_gucu / toplam_guc) * 5)  # Maksimum 5 gol
+    gol_sayisi1 = np.random.poisson(takim1_gucu / 20)
+    gol_sayisi2 = np.random.poisson(takim2_gucu / 20)
 
-    # Gol atan oyuncuları belirleme
-    gol_atan_oyuncular1 = random.choices(takim1.oyuncular, k=gol_sayisi1)
-    gol_atan_oyuncular2 = random.choices(takim2.oyuncular, k=gol_sayisi2)
+    gol_atan_oyuncular1 = random.choices(takim1.oyuncular, weights=[oyuncu.overall for oyuncu in takim1.oyuncular], k=gol_sayisi1)
+    gol_atan_oyuncular2 = random.choices(takim2.oyuncular, weights=[oyuncu.overall for oyuncu in takim2.oyuncular], k=gol_sayisi2)
 
     return gol_sayisi1, gol_sayisi2, gol_atan_oyuncular1, gol_atan_oyuncular2
 
-# Streamlit arayüzü
+# Streamlit uygulaması
 def main():
-    st.title("Futbol Takım Yönetimi")
+    st.title("Futbol Menajerlik Oyunu")
 
-    # Kullanıcı verilerini saklamak için session state kullanıyoruz
-    if 'oyuncular' not in st.session_state:
-        st.session_state.oyuncular = []
-    if 'transfermarkt' not in st.session_state:
-        st.session_state.transfermarkt = []
+    # CSV'den oyuncuları yükle
+    csv_data = pd.read_csv('players_game.csv')
+    oyuncular = oyuncu_olustur(csv_data)
+
+    transfermarkt = oyuncular
+    takimlar = []
+
+    # Takım kurma
     if 'takimlar' not in st.session_state:
-        st.session_state.takimlar = []
-    if 'mac_baslatildi' not in st.session_state:
-        st.session_state.mac_baslatildi = False
-        st.session_state.mac_sonuclari = None
+        st.session_state['takimlar'] = []
 
-    menu_option = st.sidebar.selectbox("Seçenekler", ["Oyuncu Oluştur", "Transfermarkt'i Gör", "Takım Kur", "Oyuncu Satın Al", "Maç Yap"])
+    st.sidebar.title("Menü")
+    menu_secim = st.sidebar.selectbox("Seçenekler", ["Oyuncu Listesi", "Takım Kur", "Oyuncu Satın Al", "Maç Başlat"])
 
-    if menu_option == "Oyuncu Oluştur":
-        isim = st.text_input("Oyuncunun ismini girin:")
-        overall = st.number_input("Oyuncunun overall gücünü (1-100 arası) girin:", min_value=1, max_value=100)
-
-        if st.button("Oyuncu Oluştur"):
-            fiyat = overall * 100_000
-            oyuncu = FutbolOyuncusu(isim, overall, fiyat)
-            st.session_state.oyuncular.append(oyuncu)
-            st.session_state.transfermarkt.append(oyuncu)
-            st.success(f"{oyuncu.isim} oyuncusu oluşturuldu ve Transfermarkt'a eklendi!")
-
-    elif menu_option == "Transfermarkt'i Gör":
-        if not st.session_state.transfermarkt:
-            st.warning("Transfermarkt'ta hiç oyuncu yok.")
+    if menu_secim == "Oyuncu Listesi":
+        st.header("Transfermarkt'taki Oyuncular")
+        if transfermarkt:
+            for oyuncu in transfermarkt:
+                st.write(f"{oyuncu.isim} - Overall: {oyuncu.overall}, Yaş: {oyuncu.yas}, Fiyat: {oyuncu.fiyat:.2f} €")
         else:
-            st.write("Transfermarkt:")
-            for i, oyuncu in enumerate(st.session_state.transfermarkt):
-                st.write(f"{i + 1}. {oyuncu.isim} (Overall: {oyuncu.overall}, Fiyat: {oyuncu.fiyat} €)")
+            st.write("Transfermarkt'ta oyuncu yok.")
 
-    elif menu_option == "Takım Kur":
-        isim = st.text_input("Takımın ismini girin:")
-        para = st.number_input("Takımın bütçesini girin (minimum 1 milyon €):", min_value=1_000_000)
-
+    elif menu_secim == "Takım Kur":
+        takim_ismi = st.text_input("Takımın ismi:")
+        takim_butcesi = st.number_input("Takımın bütçesi (M €):", min_value=1, max_value=1000, value=50)
+        
         if st.button("Takım Kur"):
-            takim = Takim(isim, para)
-            st.session_state.takimlar.append(takim)
-            st.success(f"{takim.isim} takımı kuruldu!")
+            yeni_takim = Takim(takim_ismi, takim_butcesi * 1_000_000)
+            st.session_state['takimlar'].append(yeni_takim)
+            st.success(f"{takim_ismi} takımı başarıyla kuruldu!")
 
-    elif menu_option == "Oyuncu Satın Al":
-        if not st.session_state.takimlar:
-            st.warning("Oyuncu satın almak için önce bir takım kurmalısınız!")
-        elif not st.session_state.transfermarkt:
-            st.warning("Transfermarkt'ta satılık oyuncu yok!")
+    elif menu_secim == "Oyuncu Satın Al":
+        if not st.session_state['takimlar']:
+            st.write("Önce bir takım kurmalısınız!")
         else:
-            takim_secimi = st.selectbox("Satın alacak takım:", [takim.isim for takim in st.session_state.takimlar])
-            takim = next(t for t in st.session_state.takimlar if t.isim == takim_secimi)
-            oyuncu_secimi = st.selectbox("Satın alınacak oyuncu:", [oyuncu.isim for oyuncu in st.session_state.transfermarkt])
-
+            takim_secim = st.selectbox("Takım Seç", st.session_state['takimlar'], format_func=lambda x: x.isim)
+            transfermarkt_listele = st.selectbox("Oyuncu Seç", transfermarkt, format_func=lambda x: f"{x.isim} - Overall: {x.overall}, Fiyat: {x.fiyat:.2f} €")
+            
             if st.button("Oyuncu Satın Al"):
-                oyuncu = next(o for o in st.session_state.transfermarkt if o.isim == oyuncu_secimi)
-                if takim.oyuncu_satinal(oyuncu):
-                    st.session_state.transfermarkt.remove(oyuncu)
-                    st.success(f"{oyuncu.isim} oyuncusu {takim.isim} takımına transfer edildi!")
-                else:
-                    st.error("Yeterli paranız yok!")
+                takim_secim.oyuncu_satinal(transfermarkt_listele)
+                transfermarkt.remove(transfermarkt_listele)
 
-    elif menu_option == "Maç Yap":
-        if len(st.session_state.takimlar) < 2:
-            st.warning("Maç yapabilmek için en az iki takım oluşturmalısınız!")
+    elif menu_secim == "Maç Başlat":
+        if len(st.session_state['takimlar']) < 2:
+            st.write("Maç yapabilmek için en az 2 takım olmalı.")
         else:
-            takim1_secimi = st.selectbox("Birinci takım:", [takim.isim for takim in st.session_state.takimlar])
-            takim2_secimi = st.selectbox("İkinci takım:", [takim.isim for takim in st.session_state.takimlar if takim.isim != takim1_secimi])
+            takim1 = st.selectbox("Birinci Takım", st.session_state['takimlar'], format_func=lambda x: x.isim)
+            takim2 = st.selectbox("İkinci Takım", st.session_state['takimlar'], format_func=lambda x: x.isim)
 
             if st.button("Maç Başlat"):
-                takim1 = next(t for t in st.session_state.takimlar if t.isim == takim1_secimi)
-                takim2 = next(t for t in st.session_state.takimlar if t.isim == takim2_secimi)
-                gol1, gol2, gol_atan_oyuncular1, gol_atan_oyuncular2 = takimlar_arasi_mac(takim1, takim2)
+                gol_sayisi1, gol_sayisi2, gol_atanlar1, gol_atanlar2 = takimlar_arasi_mac(takim1, takim2)
+                st.write(f"Maç Skoru: {takim1.isim} {gol_sayisi1} - {gol_sayisi2} {takim2.isim}")
 
-                # Maç sonuçlarını kaydet
-                st.session_state.mac_baslatildi = True
-                st.session_state.mac_sonuclari = (takim1.isim, gol1, gol_atan_oyuncular1, gol2, gol_atan_oyuncular2, takim2.isim)
-
-                st.success("Maç başarıyla başlatıldı!")
-
-    if st.session_state.mac_baslatildi:
-        # Maç sonuçları ekranı
-        st.header("Maç Sonuçları")
-        takim1, gol1, gol_atan_oyuncular1, gol2, gol_atan_oyuncular2, takim2 = st.session_state.mac_sonuclari
-        st.write(f"{takim1} {gol1} - {gol2} {takim2}")
-
-        if gol1 > gol2:
-            st.success(f"Kazanan: {takim1}!")
-        elif gol1 < gol2:
-            st.success(f"Kazanan: {takim2}!")
-        else:
-            st.success("Maç Berabere!")
-
-        # Gol atan oyuncuları göster
-        st.write(f"{takim1} Gol Atanlar: {[oyuncu.isim for oyuncu in gol_atan_oyuncular1]}")
-        st.write(f"{takim2} Gol Atanlar: {[oyuncu.isim for oyuncu in gol_atan_oyuncular2]}")
+                st.write(f"{takim1.isim} Gol Atanlar: {[oyuncu.isim for oyuncu in gol_atanlar1]}")
+                st.write(f"{takim2.isim} Gol Atanlar: {[oyuncu.isim for oyuncu in gol_atanlar2]}")
 
 if __name__ == "__main__":
     main()
